@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أداة توزيع تكليف الأطباء - مصر</title>
+    
+    <!-- Google Fonts: Cairo -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #1565c0;
+            --primary-dark: #0d47a1;
+            --teal: #00838f;
+            --red: #c62828;
+            --green: #2e7d32;
+            --gold: #f9a825;
+            --bg: #eef2f7;
+            --card-bg: #ffffff;
+            --text: #263238;
+            --text-light: #546e7a;
+            --border: #e0e0e0;
+            --shadow: rgba(0,0,0,0.1);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body { 
+            font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .header { 
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white; 
+            padding: 24px 30px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+            text-align: center;
+        }
+
+        .header h1 { font-size: 28px; font-weight: 800; margin-bottom: 8px;}
+        .header p { font-size: 16px; opacity: 0.9; margin: 0;}
+
+        .container {
+            max-width: 1400px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        .card { 
+            background: var(--card-bg);
+            border-radius: 8px; 
+            box-shadow: 0 2px 8px var(--shadow); 
+            padding: 24px;
+            margin-bottom: 24px; 
+            border: 1px solid var(--border);
+        }
+
+        .card.blue { border-right: 5px solid var(--primary); }
+        .card.teal { border-right: 5px solid var(--teal); }
+        .card.gold { border-right: 5px solid var(--gold); }
+
+        .card h2 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--primary-dark);
+        }
+
+        /* Forms */
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: flex-end;
+        }
+        
+        .form-group { flex: 1; min-width: 200px; }
+        .form-label { font-weight: 700; color: var(--text); margin-bottom: 8px; display: block; font-size: 14px;}
+        .form-control {
+            width: 100%;
+            border-radius: 6px;
+            padding: 10px 16px;
+            border: 1px solid var(--border);
+            font-family: inherit;
+            font-weight: 600;
+            color: var(--text);
+            font-size: 15px;
+            background: #fafafa;
+            transition: all 0.2s;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.1);
+            background: white;
+        }
+
+        /* Buttons */
+        .btn { 
+            background: var(--primary);
+            color: white; 
+            border: none; 
+            padding: 12px 24px; 
+            border-radius: 6px; 
+            font-weight: 700; 
+            font-size: 15px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px var(--shadow);
+            white-space: nowrap;
+        }
+        .btn:hover { background: var(--primary-dark); }
+        
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            padding: 6px 16px;
+        }
+        .btn-outline:hover { background: var(--primary); color: white; }
+        
+        .btn-link {
+            background: none; border: none; color: var(--primary);
+            text-decoration: underline; cursor: pointer; font-family: inherit; font-weight: 600;
+            font-size: 14px; margin-top: 10px;
+        }
+
+        /* Map & Chart */
+        #map { height: 450px; border-radius: 6px; width: 100%; z-index: 1; border: 1px solid var(--border);}
+        .chart-container { position: relative; height: 400px; width: 100%; }
+
+        /* Tables */
+        .table-responsive { max-height: 500px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: right; padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 14px;}
+        th { 
+            background: #f5f5f5; 
+            color: var(--text-light); 
+            font-weight: 700; 
+            position: sticky; 
+            top: 0; 
+            z-index: 2; 
+        }
+        td { font-weight: 600; color: var(--text); background: white;}
+        tr:hover td { background: #fafafa; }
+        
+        .tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .tag.red { background: rgba(198, 40, 40, 0.1); color: var(--red); border: 1px solid rgba(198,40,40,0.2);}
+        .tag.teal { background: rgba(0, 131, 143, 0.1); color: var(--teal); border: 1px solid rgba(0,131,143,0.2);}
+
+        /* Loading */
+        .loader-container { text-align: center; padding: 40px; display: none; }
+        .spinner {
+            width: 40px; height: 40px; border: 4px solid var(--border);
+            border-top: 4px solid var(--primary); border-radius: 50%;
+            animation: spin 1s linear infinite; margin: 0 auto 16px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .flex-row { display: flex; gap: 24px; }
+        .col-half { flex: 1; min-width: 0; }
+        
+        @media (max-width: 900px) {
+            .flex-row { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1><i class="fa-solid fa-hospital-user me-2"></i> منصة توزيع التكليف - القطاع الطبي</h1>
+        <p>نظام التحليل المكاني وحساب مسارات القيادة المعتمد</p>
+    </div>
+
+    <div class="container">
+        <!-- Input Section -->
+        <div class="card blue">
+            <h2><i class="fa-solid fa-location-crosshairs"></i> تحديد الموقع الجغرافي</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">خط العرض (Latitude)</label>
+                    <input type="number" id="latInput" class="form-control" value="30.0444" step="0.0001">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">خط الطول (Longitude)</label>
+                    <input type="number" id="lonInput" class="form-control" value="31.2357" step="0.0001">
+                </div>
+                <div class="form-group" style="flex: 0 1 auto;">
+                    <button class="btn" onclick="calculateRoutes()"><i class="fa-solid fa-calculator"></i> بدء التحليل</button>
+                </div>
+            </div>
+            <button class="btn-link" onclick="getLocation()"><i class="fa-solid fa-location-arrow"></i> تحديد الموقع الحالي عبر المتصفح</button>
+        </div>
+        
+        <!-- Loading State -->
+        <div id="loadingIndicator" class="loader-container">
+            <div class="spinner"></div>
+            <h3 style="color: var(--primary); font-weight: 700;" id="loadingText">جاري معالجة المسارات لـ 60 جهة طبية...</h3>
+            <p style="color: var(--text-light); font-size: 14px; margin-top: 8px;">يتم استدعاء بيانات المرور والمسارات من مزود OSRM</p>
+        </div>
+
+        <!-- Dashboard Section -->
+        <div id="dashboard" style="display: none;">
+            
+            <div class="card teal p-0" style="padding: 0; overflow: hidden;">
+                <div style="padding: 20px 24px; border-bottom: 1px solid var(--border);">
+                    <h2 style="margin: 0;"><i class="fa-solid fa-map"></i> العرض المكاني للمسارات</h2>
+                </div>
+                <div id="map"></div>
+            </div>
+
+            <div class="flex-row">
+                <div class="col-half">
+                    <div class="card gold h-100">
+                        <h2><i class="fa-solid fa-chart-column"></i> التحليل الزمني للقيادة (دقيقة)</h2>
+                        <div class="chart-container">
+                            <canvas id="myChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-half">
+                    <div class="card blue h-100" style="display: flex; flex-direction: column;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <h2 style="margin: 0;"><i class="fa-solid fa-table-list"></i> الجهات المتاحة (ترتيب تصاعدي)</h2>
+                            <button class="btn btn-outline" onclick="downloadCSV()"><i class="fa-solid fa-download"></i> تصدير التقرير</button>
+                        </div>
+                        <div class="table-responsive" style="flex: 1;">
+                            <table id="resultsTable">
+                                <thead>
+                                    <tr>
+                                        <th>الجهة الطبية</th>
+                                        <th>زمن القيادة</th>
+                                        <th>المسافة</th>
+                                        <th style="text-align: center;">جوجل ماب</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Rows added via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        let map;
+        let chartInstance;
+        let locationsData = [];
+        let sortedResults = [];
+        
+        fetch('locations.json')
+            .then(res => res.json())
+            .then(data => { locationsData = data; })
+            .catch(err => console.error("Error loading JSON", err));
+
+        function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+            var R = 6371; 
+            var dLat = deg2rad(lat2-lat1);
+            var dLon = deg2rad(lon2-lon1); 
+            var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+                    Math.sin(dLon/2) * Math.sin(dLon/2); 
+            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+            return R * c;
+        }
+        function deg2rad(deg) { return deg * (Math.PI/180) }
+
+        function getLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        document.getElementById('latInput').value = position.coords.latitude;
+                        document.getElementById('lonInput').value = position.coords.longitude;
+                        calculateRoutes();
+                    },
+                    (err) => alert("تعذر التحديد. تأكد من إعدادات المتصفح.")
+                );
+            } else {
+                alert("المتصفح لا يدعم هذه الخاصية.");
+            }
+        }
+
+        async function calculateRoutes() {
+            const userLat = parseFloat(document.getElementById('latInput').value);
+            const userLon = parseFloat(document.getElementById('lonInput').value);
+            
+            if (!userLat || !userLon || locationsData.length === 0) return;
+
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('loadingIndicator').style.display = 'block';
+
+            locationsData.forEach(loc => {
+                loc.directDist = getDistanceFromLatLonInKm(userLat, userLon, loc.lat, loc.lon);
+            });
+            
+            const topCandidates = [...locationsData].sort((a, b) => a.directDist - b.directDist).slice(0, 60);
+            const loadingText = document.getElementById('loadingText');
+            
+            sortedResults = [];
+            for (let i = 0; i < topCandidates.length; i++) {
+                const loc = topCandidates[i];
+                loadingText.innerText = `جاري استدعاء مسار ${i+1} من ${topCandidates.length}...`;
+                
+                try {
+                    const url = `https://router.project-osrm.org/route/v1/driving/${userLon},${userLat};${loc.lon},${loc.lat}?overview=false`;
+                    const res = await fetch(url);
+                    const data = await res.json();
+                    
+                    if (data.code === 'Ok') {
+                        loc.driveDist = data.routes[0].distance / 1000;
+                        loc.driveMins = data.routes[0].duration / 60;
+                    } else {
+                        loc.driveDist = loc.directDist * 1.3; 
+                        loc.driveMins = loc.driveDist * 1.5; 
+                    }
+                } catch(e) {
+                    loc.driveDist = loc.directDist * 1.3; 
+                    loc.driveMins = loc.driveDist * 1.5; 
+                }
+                
+                sortedResults.push(loc);
+                await new Promise(r => setTimeout(r, 60));
+            }
+
+            sortedResults.sort((a, b) => a.driveMins - b.driveMins);
+            
+            document.getElementById('loadingIndicator').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            
+            renderDashboard(userLat, userLon);
+        }
+
+        function renderDashboard(userLat, userLon) {
+            if(map) { map.remove(); }
+            map = L.map('map').setView([userLat, userLon], 10);
+            
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+            }).addTo(map);
+            
+            var userIcon = L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] });
+            L.marker([userLat, userLon], {icon: userIcon}).addTo(map).bindPopup("<div style='text-align:right; font-family:Cairo; font-size:14px;' dir='rtl'><b>📍 نقطة الانطلاق</b></div>").openPopup();
+
+            const tbody = document.querySelector("#resultsTable tbody");
+            tbody.innerHTML = "";
+            
+            const chartLabels = [];
+            const chartData = [];
+
+            sortedResults.forEach((loc, index) => {
+                L.marker([loc.lat, loc.lon]).addTo(map)
+                 .bindPopup(`<div style="text-align:right; font-family:Cairo; font-size:14px;" dir="rtl"><b>${loc.name}</b><br><span style="color:#1565c0; font-weight:700;">الزمن: ${loc.driveMins.toFixed(1)} دقيقة</span></div>`);
+
+                const gmapsUrl = `https://www.google.com/maps/dir/${userLat},${userLon}/${loc.lat},${loc.lon}/`;
+                
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td style="color:#1e293b;">${loc.name}</td>
+                    <td><span class="tag red">${loc.driveMins.toFixed(1)} دقيقة</span></td>
+                    <td><span class="tag teal">${loc.driveDist.toFixed(1)} كم</span></td>
+                    <td style="text-align: center;"><a href="${gmapsUrl}" target="_blank" class="btn btn-outline" style="padding: 4px 10px; font-size: 12px;">معاينة ↗️</a></td>
+                `;
+                tbody.appendChild(tr);
+
+                if (index < 30) {
+                    chartLabels.push(loc.name.split('-').pop().trim().substring(0, 20) + "..");
+                    chartData.push(loc.driveMins.toFixed(1));
+                }
+            });
+
+            if(chartInstance) { chartInstance.destroy(); }
+            const ctx = document.getElementById('myChart').getContext('2d');
+
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: chartLabels,
+                    datasets: [{
+                        label: 'وقت القيادة (دقائق)',
+                        data: chartData,
+                        backgroundColor: '#1565c0',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: '#e0e0e0' }, ticks: { font: { family: 'Cairo', weight: 'bold' } } },
+                        y: { grid: { display: false }, ticks: { font: { family: 'Cairo', weight: 'bold' } } }
+                    }
+                }
+            });
+        }
+
+        function downloadCSV() {
+            let csvContent = "data:text/csv;charset=utf-8,﻿";
+            csvContent += "الجهة,وقت_القيادة_بالدقائق,مسافة_القيادة_بالكم,رابط_جوجل_ماب
+";
+            const userLat = document.getElementById('latInput').value;
+            const userLon = document.getElementById('lonInput').value;
+            
+            sortedResults.forEach(loc => {
+                const gUrl = `https://www.google.com/maps/dir/${userLat},${userLon}/${loc.lat},${loc.lon}/`;
+                const safeName = `"${loc.name.replace(/"/g, '""')}"`;
+                csvContent += `${safeName},${loc.driveMins.toFixed(1)},${loc.driveDist.toFixed(1)},"${gUrl}"
+`;
+            });
+
+            var encodedUri = encodeURI(csvContent);
+            var link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "assignment_report.csv");
+            document.body.appendChild(link);
+            link.click();
+        }
+    </script>
+</body>
+</html>
