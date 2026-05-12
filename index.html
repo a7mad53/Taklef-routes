@@ -339,8 +339,12 @@
         <!-- Loading State -->
         <div id="loadingIndicator" class="loader-container">
             <div class="spinner"></div>
-            <h3 style="color: var(--primary); font-weight: 700;" id="loadingText">جاري معالجة المسارات لـ 60 جهة طبية...</h3>
+            <h3 style="color: var(--primary); font-weight: 700;" id="loadingText">جاري معالجة المسارات لجميع الجهات الطبية...</h3>
             <p style="color: var(--text-light); font-size: 14px; margin-top: 8px;">يتم استدعاء بيانات المرور والمسارات من مزود OSRM</p>
+            <div style="margin-top: 16px; background: var(--border); border-radius: 6px; height: 8px; overflow: hidden; max-width: 400px; margin-left: auto; margin-right: auto;">
+                <div id="progressBar" style="height: 100%; width: 0%; background: linear-gradient(90deg, var(--primary), var(--teal)); border-radius: 6px; transition: width 0.3s ease;"></div>
+            </div>
+            <p style="color: var(--text-light); font-size: 13px; margin-top: 8px;" id="progressText"></p>
         </div>
 
         <!-- Dashboard Section -->
@@ -367,7 +371,7 @@
                     <div class="card blue h-100" style="display: flex; flex-direction: column;">
                         <div class="title-flex" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap;">
                             <h2 style="margin: 0;"><i class="fa-solid fa-table-list"></i> الجهات المتاحة (ترتيب تصاعدي)</h2>
-                            <button class="btn btn-outline" onclick="downloadCSV()"><i class="fa-solid fa-download"></i> تصدير التقرير</button>
+                            <button class="btn btn-outline" onclick="downloadExcel()"><i class="fa-solid fa-file-excel"></i> تصدير إكسيل</button>
                         </div>
                         <div class="table-responsive" style="flex: 1;">
                             <table id="resultsTable">
@@ -413,6 +417,7 @@
     <!-- Scripts -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <script>
         let map;
@@ -667,32 +672,62 @@
                 loc.directDist = getDistanceFromLatLonInKm(userLat, userLon, loc.lat, loc.lon);
             });
             
-            const topCandidates = [...locationsData].sort((a, b) => a.directDist - b.directDist).slice(0, 60);
+            const allCandidates = [...locationsData].sort((a, b) => a.directDist - b.directDist);
             const loadingText = document.getElementById('loadingText');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
             
             sortedResults = [];
-            for (let i = 0; i < topCandidates.length; i++) {
-                const loc = topCandidates[i];
-                loadingText.innerText = `جاري استدعاء مسار ${i+1} من ${topCandidates.length}...`;
+            
+            // Use OSRM Table API in batches for speed
+            const BATCH_SIZE = 50;
+            const totalBatches = Math.ceil(allCandidates.length / BATCH_SIZE);
+            
+            for (let b = 0; b < totalBatches; b++) {
+                const batch = allCandidates.slice(b * BATCH_SIZE, (b + 1) * BATCH_SIZE);
+                const progress = Math.round(((b + 1) / totalBatches) * 100);
+                loadingText.innerText = `جاري معالجة الدفعة ${b + 1} من ${totalBatches} (${allCandidates.length} جهة)...`;
+                progressBar.style.width = progress + '%';
+                progressText.textContent = `${Math.min((b + 1) * BATCH_SIZE, allCandidates.length)} / ${allCandidates.length}`;
                 
                 try {
-                    const url = `https://router.project-osrm.org/route/v1/driving/${userLon},${userLat};${loc.lon},${loc.lat}?overview=false`;
+                    // Build Table API URL: source is first coord, rest are destinations
+                    const coords = [`${userLon},${userLat}`, ...batch.map(l => `${l.lon},${l.lat}`)].join(';');
+                    const sources = '0'; // only the user location is a source
+                    const destinations = batch.map((_, i) => i + 1).join(';');
+                    const url = `https://router.project-osrm.org/table/v1/driving/${coords}?sources=${sources}&destinations=${destinations}&annotations=duration,distance`;
+                    
                     const data = await fetchWithRetry(url);
                     
                     if (data.code === 'Ok') {
-                        loc.driveDist = data.routes[0].distance / 1000;
-                        loc.driveMins = data.routes[0].duration / 60;
+                        const durations = data.durations[0];
+                        const distances = data.distances[0];
+                        batch.forEach((loc, i) => {
+                            if (durations[i] !== null && distances[i] !== null) {
+                                loc.driveDist = distances[i] / 1000;
+                                loc.driveMins = durations[i] / 60;
+                            } else {
+                                loc.driveDist = loc.directDist * 1.3;
+                                loc.driveMins = loc.driveDist * 1.5;
+                            }
+                        });
                     } else {
-                        loc.driveDist = loc.directDist * 1.3; 
-                        loc.driveMins = loc.driveDist * 1.5; 
+                        // Fallback for entire batch
+                        batch.forEach(loc => {
+                            loc.driveDist = loc.directDist * 1.3;
+                            loc.driveMins = loc.driveDist * 1.5;
+                        });
                     }
                 } catch(e) {
-                    loc.driveDist = loc.directDist * 1.3; 
-                    loc.driveMins = loc.driveDist * 1.5; 
+                    // Fallback for entire batch
+                    batch.forEach(loc => {
+                        loc.driveDist = loc.directDist * 1.3;
+                        loc.driveMins = loc.driveDist * 1.5;
+                    });
                 }
                 
-                sortedResults.push(loc);
-                await new Promise(r => setTimeout(r, 60));
+                sortedResults.push(...batch);
+                await new Promise(r => setTimeout(r, 200));
             }
 
             sortedResults.sort((a, b) => a.driveMins - b.driveMins);
@@ -705,13 +740,15 @@
 
         function renderDashboard(userLat, userLon) {
             if(map) { map.remove(); }
-            map = L.map('map').setView([userLat, userLon], 10);
+            map = L.map('map');
             
             L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
                 attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
             }).addTo(map);
             
             var userIcon = L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] });
+            
+            const bounds = [[userLat, userLon]];
             L.marker([userLat, userLon], {icon: userIcon}).addTo(map).bindPopup("<div style='text-align:right; font-family:Cairo; font-size:14px;' dir='rtl'><b>📍 نقطة الانطلاق</b></div>").openPopup();
 
             const tbody = document.querySelector("#resultsTable tbody");
@@ -721,6 +758,7 @@
             const chartData = [];
 
             sortedResults.forEach((loc, index) => {
+                bounds.push([loc.lat, loc.lon]);
                 L.marker([loc.lat, loc.lon]).addTo(map)
                  .bindPopup(`<div style="text-align:right; font-family:Cairo; font-size:14px;" dir="rtl"><b>${loc.name}</b><br><span style="color:#1565c0; font-weight:700;">الزمن: ${loc.driveMins.toFixed(1)} دقيقة</span></div>`);
 
@@ -740,15 +778,23 @@
                 `;
                 tbody.appendChild(tr);
 
-                if (index < 30) {
-                    chartLabels.push(loc.name.split('-').pop().trim().substring(0, 20) + "..");
-                    chartData.push(loc.driveMins.toFixed(1));
-                }
+                // Show all in chart
+                chartLabels.push(loc.name.split('-').pop().trim().substring(0, 30) + "..");
+                chartData.push(loc.driveMins.toFixed(1));
             });
 
-            if(chartInstance) { chartInstance.destroy(); }
-            const ctx = document.getElementById('myChart').getContext('2d');
+            // Fit map to bounds
+            if (bounds.length > 0) {
+                map.fitBounds(bounds, { padding: [20, 20] });
+            }
 
+            if(chartInstance) { chartInstance.destroy(); }
+            
+            // Adjust chart container height based on number of items (approx 20px per item)
+            const chartHeight = Math.max(400, sortedResults.length * 20);
+            document.querySelector('.chart-container').style.height = chartHeight + 'px';
+
+            const ctx = document.getElementById('myChart').getContext('2d');
             chartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -767,31 +813,46 @@
                     plugins: { legend: { display: false } },
                     scales: {
                         x: { grid: { color: '#e0e0e0' }, ticks: { font: { family: 'Cairo', weight: 'bold' } } },
-                        y: { grid: { display: false }, ticks: { font: { family: 'Cairo', weight: 'bold' } } }
+                        y: { grid: { display: false }, ticks: { font: { family: 'Cairo', weight: 'bold', size: 10 } } }
                     }
                 }
             });
         }
 
-        function downloadCSV() {
-            let csvContent = "\uFEFF";
-            csvContent += "الجهة,وقت_القيادة_بالدقائق,مسافة_القيادة_بالكم,رابط_جوجل_ماب\n";
+        function downloadExcel() {
+            const worksheetData = [
+                ["الترتيب", "الجهة", "وقت_القيادة_بالدقائق", "مسافة_القيادة_بالكم", "رابط_جوجل_ماب"]
+            ];
             
-            sortedResults.forEach(loc => {
+            sortedResults.forEach((loc, index) => {
                 const gUrl = `https://www.google.com/maps/dir/?api=1&origin=${globalUserLat},${globalUserLon}&destination=${encodeURIComponent(loc.name)}`;
-                const safeName = `"${loc.name.replace(/"/g, '""')}"`;
-                csvContent += `${safeName},${loc.driveMins.toFixed(1)},${loc.driveDist.toFixed(1)},"${gUrl}"\n`;
+                worksheetData.push([
+                    index + 1,
+                    loc.name,
+                    parseFloat(loc.driveMins.toFixed(1)),
+                    parseFloat(loc.driveDist.toFixed(1)),
+                    gUrl
+                ]);
             });
 
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.setAttribute("href", url);
-            link.setAttribute("download", "assignment_report.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
+            const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+            
+            // Set some column widths
+            ws['!cols'] = [
+                { wch: 8 },  // الترتيب
+                { wch: 60 }, // الجهة
+                { wch: 20 }, // وقت القيادة
+                { wch: 20 }, // المسافة
+                { wch: 50 }  // رابط
+            ];
+            
+            // Right to left view
+            if (!ws['!views']) ws['!views'] = [];
+            ws['!views'].push({ rightToLeft: true });
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "نتائج_التوزيع");
+            XLSX.writeFile(wb, "assignment_report.xlsx");
         }
     </script>
 </body>
