@@ -758,9 +758,12 @@
             const chartData = [];
 
             sortedResults.forEach((loc, index) => {
-                bounds.push([loc.lat, loc.lon]);
-                L.marker([loc.lat, loc.lon]).addTo(map)
-                 .bindPopup(`<div style="text-align:right; font-family:Cairo; font-size:14px;" dir="rtl"><b>${loc.name}</b><br><span style="color:#1565c0; font-weight:700;">الزمن: ${loc.driveMins.toFixed(1)} دقيقة</span></div>`);
+                // Show top 50 in map
+                if (index < 50) {
+                    bounds.push([loc.lat, loc.lon]);
+                    L.marker([loc.lat, loc.lon]).addTo(map)
+                     .bindPopup(`<div style="text-align:right; font-family:Cairo; font-size:14px;" dir="rtl"><b>${loc.name}</b><br><span style="color:#1565c0; font-weight:700;">الزمن: ${loc.driveMins.toFixed(1)} دقيقة</span></div>`);
+                }
 
                 const gmapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLon}&destination=${encodeURIComponent(loc.name)}`;
                 
@@ -778,9 +781,11 @@
                 `;
                 tbody.appendChild(tr);
 
-                // Show all in chart
-                chartLabels.push(loc.name.split('-').pop().trim().substring(0, 30) + "..");
-                chartData.push(loc.driveMins.toFixed(1));
+                // Show top 50 in chart
+                if (index < 50) {
+                    chartLabels.push(loc.name.split('-').pop().trim().substring(0, 30) + "..");
+                    chartData.push(loc.driveMins.toFixed(1));
+                }
             });
 
             // Fit map to bounds
@@ -790,8 +795,9 @@
 
             if(chartInstance) { chartInstance.destroy(); }
             
-            // Adjust chart container height based on number of items (approx 20px per item)
-            const chartHeight = Math.max(400, sortedResults.length * 20);
+            // Adjust chart container height based on number of items (approx 25px per item)
+            const chartItemsCount = Math.min(sortedResults.length, 50);
+            const chartHeight = Math.max(400, chartItemsCount * 25);
             document.querySelector('.chart-container').style.height = chartHeight + 'px';
 
             const ctx = document.getElementById('myChart').getContext('2d');
