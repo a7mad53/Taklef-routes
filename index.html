@@ -199,7 +199,7 @@
             #map { height: 350px; }
             .chart-container { height: 300px; }
             
-            th, td { padding: 10px; font-size: 12px; white-space: nowrap; }
+            th, td { padding: 10px; font-size: 12px; }
             .tag { padding: 4px 8px; font-size: 11px; }
             
             .title-flex { flex-direction: column; align-items: flex-start !important; gap: 10px; }
@@ -774,7 +774,7 @@
                 const tr = document.createElement("tr");
                 tr.innerHTML = `
                     <td style="text-align: center; font-weight: bold; color: var(--text-light);">${index + 1}</td>
-                    <td style="color:#1e293b;">${correctedBadge}${loc.name}</td>
+                    <td style="color:#1e293b; white-space: normal; min-width: 160px; line-height: 1.6;">${correctedBadge}${loc.name}</td>
                     <td><span class="tag red">${loc.driveMins.toFixed(1)} دقيقة</span></td>
                     <td><span class="tag teal">${loc.driveDist.toFixed(1)} كم</span></td>
                     <td style="text-align: center; white-space: nowrap;">${editBtn}${resetBtn} <a href="${gmapsUrl}" target="_blank" class="btn btn-outline" style="padding: 4px 10px; font-size: 12px;">معاينة ↗️</a></td>
