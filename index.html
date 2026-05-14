@@ -551,7 +551,7 @@
             setTimeout(() => {
                 closeCorrectionModal();
                 if (globalUserLat && globalUserLon && document.getElementById('dashboard').style.display !== 'none') {
-                    renderDashboard(globalUserLat, globalUserLon);
+                    calculateRoutes();
                 }
             }, 1000);
         }
@@ -563,7 +563,7 @@
             // Reload to get original coords
             loadLocations().then(() => {
                 if (globalUserLat && globalUserLon && document.getElementById('dashboard').style.display !== 'none') {
-                    renderDashboard(globalUserLat, globalUserLon);
+                    calculateRoutes();
                 }
             });
         }
