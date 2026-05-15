@@ -1,0 +1,23 @@
+{
+  "name": "taklef-routes",
+  "version": "1.0.0",
+  "description": "Medical Assignment Optimizer - A web platform for Egyptian medical graduates",
+  "type": "module",
+  "scripts": {
+    "dev": "npx serve .",
+    "build": "echo 'No build step required for static site'",
+    "lint": "echo 'No linting configured'",
+    "test": "echo 'No tests configured'"
+  },
+  "keywords": [
+    "medical",
+    "routing",
+    "healthcare",
+    "egypt"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@vercel/speed-insights": "^1.0.12"
+  }
+}
