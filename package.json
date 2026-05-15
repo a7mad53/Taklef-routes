@@ -1,0 +1,25 @@
+{
+  "name": "taklef-routes",
+  "version": "1.0.0",
+  "description": "A comprehensive web-based platform designed to assist Egyptian medical graduates in identifying the most suitable hospital assignments based on real-world driving times and geographical proximity.",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx serve .",
+    "start": "npx serve .",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/a7mad53/Taklef-routes.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/a7mad53/Taklef-routes/issues"
+  },
+  "homepage": "https://github.com/a7mad53/Taklef-routes#readme",
+  "dependencies": {
+    "@vercel/speed-insights": "^2.0.0"
+  }
+}
